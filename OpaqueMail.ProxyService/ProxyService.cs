@@ -190,6 +190,12 @@ namespace OpaqueMail.Proxy
             return AppDomain.CurrentDomain.BaseDirectory + "\\OpaqueMail.Proxy.xml";
         }
         #endregion Private Methods
+
+        public void Execute(string[] args)
+        {
+            this.OnStart(args);
+        }
+
     }
 
     /// <summary>
