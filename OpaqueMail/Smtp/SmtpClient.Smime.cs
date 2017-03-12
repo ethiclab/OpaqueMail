@@ -296,7 +296,7 @@ namespace OpaqueMail
                 unsignedMessageBuilder.Append(Functions.ToBase64String(contentBytes));
             }
             else
-                unsignedMessageBuilder.Append(Encoding.UTF8.GetString(contentBytes));
+                unsignedMessageBuilder.Append(Encoding.UTF8.GetString(contentBytes)+"\r\n");
 
             // Prepare the signing parameters.
             ContentInfo contentInfo = new ContentInfo(Encoding.UTF8.GetBytes(unsignedMessageBuilder.ToString()));
