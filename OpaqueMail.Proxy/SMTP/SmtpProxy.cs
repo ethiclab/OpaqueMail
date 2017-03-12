@@ -620,7 +620,8 @@ namespace OpaqueMail.Proxy
                                                 File.WriteAllText(fileName, messageText);
                                             }
 
-                                            MailMessage message = new MailMessage(messageText, MailMessageProcessingFlags.IncludeRawHeaders | MailMessageProcessingFlags.IncludeRawBody);
+                                            // MailMessage message = new MailMessage(messageText, MailMessageProcessingFlags.IncludeRawBody|MailMessageProcessingFlags.IncludeMIMEParts|MailMessageProcessingFlags.IncludeNestedRFC822Messages|MailMessageProcessingFlags.IncludeWinMailData);
+                                            MailMessage message = new MailMessage(messageText, MailMessageProcessingFlags.IncludeRawBody | MailMessageProcessingFlags.IncludeRawHeaders);
 
                                             if (!string.IsNullOrEmpty(arguments.FixedFrom))
                                             {
@@ -737,8 +738,13 @@ namespace OpaqueMail.Proxy
                                                 message.SmimeTripleWrapped = arguments.SmimeTripleWrapped;
 
                                                 // Look up the S/MIME signing certificate for the current sender.  If it doesn't exist, create one.
-                                                message.SmimeSigningCertificate = CertHelper.GetCertificateBySubjectName(StoreLocation.LocalMachine, message.From.Address);
+                                                message.SmimeSigningCertificate = CertHelper.GetCertificateBySubjectName(StoreLocation.LocalMachine, message.From.Address) ??
+                                                                                  CertHelper.GetCertificateBySubjectName(StoreLocation.CurrentUser, message.From.Address);
+
                                                 if (message.SmimeSigningCertificate == null)
+                                                /*{
+                                                    message.SmimeSigningCertificate = CertHelper.GetCertificateBySubjectName(StoreLocation.CurrentUser, "robert.przybyl@bizmatica.com");
+                                                }*/
                                                     message.SmimeSigningCertificate = CertHelper.CreateSelfSignedCertificate("E=" + message.From.Address, message.From.Address, StoreLocation.LocalMachine, true, 4096, 10);
 
                                                 ProxyFunctions.Log(LogWriter, SessionId, arguments.ConnectionId, "C: " + message.RawHeaders + "\r\n\r\n" + message.RawBody, Proxy.LogLevel.Raw, LogLevel);
@@ -979,7 +985,7 @@ namespace OpaqueMail.Proxy
                                             case "RCPT":
                                                 // Acknolwedge recipients.
                                                 if (commandParts.Length > 1 && commandParts[1].Length > 6)
-                                                    toList.Add(commandParts[1].Substring(5, commandParts[1].Length - 6));
+                                                    toList.Add(commandParts[1].Substring(4, commandParts[1].Length - 5));
                                                 await Functions.SendStreamStringAsync(clientStreamWriter, "250 OK\r\n");
                                                 ProxyFunctions.Log(LogWriter, SessionId, arguments.ConnectionId, "S: 250 OK", Proxy.LogLevel.Raw, LogLevel);
                                                 break;

@@ -66,6 +66,11 @@ namespace OpaqueMail.Proxy
             smtpProxies = SmtpProxy.StartProxiesFromSettingsFile(GetSettingsFileName());
         }
 
+        public void Execute(string[] args)
+        {
+            this.OnStart(args);
+        }
+
         /// <summary>
         /// Handle the service stop event by stopping all proxies.
         /// </summary>

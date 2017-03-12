@@ -321,7 +321,7 @@ namespace OpaqueMail
             ProcessingFlags = processingFlags;
 
             // Fix messages whose carriage returns have been stripped.
-            if (messageText.IndexOf("\r") < 0)
+             if (messageText.IndexOf("\r") < 0)
                 messageText = messageText.Replace("\n", "\r\n");
 
             // Separate the headers for processing.
@@ -354,7 +354,8 @@ namespace OpaqueMail
                 if (colonPos > -1 && colonPos < header.Length - 1)
                 {
                     string[] headerParts = new string[] { header.Substring(0, colonPos), header.Substring(colonPos + 1).TrimStart(new char[] { ' ' }) };
-                    string headerType = headerParts[0].ToLower();
+                    //string headerType = headerParts[0].ToLower();
+                    string headerType = headerParts[0];
                     string headerValue = headerParts[1];
 
                     // Set header variables for common headers.
@@ -363,7 +364,7 @@ namespace OpaqueMail
                         if (!string.IsNullOrEmpty(headerType))
                             Headers[headerType] = headerValue;
 
-                        switch (headerType)
+                        switch (headerType.ToLower())
                         {
                             case "cc":
                                 if (ccText.Length > 0)
@@ -901,7 +902,7 @@ namespace OpaqueMail
             // Write out body of the message.
             StringBuilder MIMEBuilder = new StringBuilder(Constants.SMALLSBSIZE);
 
-            MIMEBuilder.Append("This is a multi-part message in MIME format.\r\n\r\n");
+         //   MIMEBuilder.Append("MIME-Version: 1.0\r\n");
 
             if (!string.IsNullOrEmpty(Body))
             {
@@ -910,7 +911,7 @@ namespace OpaqueMail
                 {
                     foreach (AlternateView alternateView in AlternateViews)
                     {
-                        string mimePartContentTransferEncoding = "quoted-printable";
+                        string mimePartContentTransferEncoding = ContentTransferEncoding;
                         if (alternateView.TransferEncoding == TransferEncoding.Base64)
                             mimePartContentTransferEncoding = "base64";
 
@@ -1031,7 +1032,7 @@ namespace OpaqueMail
             {
                 MimeEncode("7bit", MimeBoundaryName).Wait();
 
-                ContentType = "multipart/mixed; boundary=\"" + MimeBoundaryName + "\"";
+                ContentType = "multipart/alternative; boundary=\"" + MimeBoundaryName + "\"";
                 ContentTransferEncoding = "7bit";
             }
             else

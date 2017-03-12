@@ -245,6 +245,8 @@ namespace OpaqueMail
                 throw new SmtpException("Exception communicating with server '" + Host + "'.  Sent 'DATA' and received '" + response + "'.");
 
             rawHeaders.Append(Functions.SpanHeaderLines("Subject: " + Functions.EncodeMailHeader(message.Subject, 32)) + "\r\n");
+            if (message.Headers["Content-Type"].Contains("multipart/alternative"))
+                rawHeaders.Append("MIME-Version: 1.0\r\n");
             foreach (string rawHeader in message.Headers)
             {
                 switch (rawHeader.ToUpper())
@@ -260,8 +262,8 @@ namespace OpaqueMail
                         break;
                 }
             }
-
-            await writer.WriteAsync(rawHeaders.ToString() + "\r\n" + rawBody + "\r\n.\r\n");
+            var msg = rawHeaders.ToString() + "\r\n" + rawBody + ".\r\n";
+            await writer.WriteAsync(msg);
 
             response = await reader.ReadLineAsync();
             if (!response.StartsWith("2"))

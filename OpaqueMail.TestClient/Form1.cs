@@ -620,7 +620,7 @@ This is a test of the APPEND command.", new string[] { @"\Seen" }, DateTime.Now)
 
                 SmtpClient smtpClient = new SmtpClient(SmtpHost.Text, smtpPort);
                 smtpClient.Credentials = new NetworkCredential(SmtpUsername.Text, SmtpPassword.Text);
-                smtpClient.EnableSsl = true;
+                smtpClient.EnableSsl = SmtpSsl.Checked;
 
                 MailMessage message = new MailMessage();
                 message.From = new MailAddress(SmtpFrom.Text);
@@ -647,6 +647,13 @@ This is a test of the APPEND command.", new string[] { @"\Seen" }, DateTime.Now)
                         message.Bcc.Add(bccAddress);
                 }
 
+                if (SmtpReplyTo.Text.Length > 0)
+                {
+                    MailAddressCollection replyToAddresses = MailAddressCollection.Parse(SmtpReplyTo.Text);
+                    foreach (MailAddress replyToAddress in replyToAddresses)
+                        message.ReplyToList.Add(replyToAddress);
+                }
+
                 message.Subject = SmtpSubject.Text;
                 message.Body = SmtpBody.Text;
 
@@ -657,13 +664,22 @@ This is a test of the APPEND command.", new string[] { @"\Seen" }, DateTime.Now)
                     if (attachmentLine.Trim().Length > 0)
                         message.Attachments.Add(new Attachment(attachmentLine.Trim()));
                 }
-
+                using (Stream s = GenerateStreamFromString(SmtpBody.Text))
+                {
+                    var x = new AlternateView(s);
+                    x.MediaType = "text/plain";
+                    x.TransferEncoding = TransferEncoding.SevenBit;
+                    message.AlternateViews.Add(x);
+                }
+                
+                
+                message.ContentType = "multipart/alternative";
                 message.IsBodyHtml = SmtpIsHtml.Checked;
                 message.SmimeSigningCertificate = signingCertificate;
                 message.SmimeSigned = SmtpSmimeSign.Checked;
                 message.SmimeEncryptedEnvelope = SmtpSmimeEncrypt.Checked;
                 message.SmimeTripleWrapped = SmtpSmimeTripleWrap.Checked;
-
+                
                 await smtpClient.SendAsync(message);
                 MessageBox.Show("Message successfully sent.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
@@ -682,7 +698,15 @@ This is a test of the APPEND command.", new string[] { @"\Seen" }, DateTime.Now)
         {
             return AppDomain.CurrentDomain.BaseDirectory + "\\OpaqueMail.TestClient.xml";
         }
-
+        public static Stream GenerateStreamFromString(string s)
+        {
+            MemoryStream stream = new MemoryStream();
+            StreamWriter writer = new StreamWriter(stream);
+            writer.Write(s);
+            writer.Flush();
+            stream.Position = 0;
+            return stream;
+        }
         /// <summary>
         /// Retrieve a saved XML setting.
         /// </summary>

@@ -13,7 +13,9 @@
  * 
  */
 
+using System;
 using System.ServiceProcess;
+using System.Threading;
 
 namespace OpaqueMail.Proxy
 {
@@ -22,14 +24,26 @@ namespace OpaqueMail.Proxy
         /// <summary>
         /// The main entry point for the application.
         /// </summary>
-        static void Main()
+        static void Main(string[] args)
         {
-            ServiceBase[] ServicesToRun;
-            ServicesToRun = new ServiceBase[] 
-            { 
-                new ProxyService() 
-            };
-            ServiceBase.Run(ServicesToRun);
+            if (Environment.UserInteractive)
+            {
+                var x = new ProxyService();
+                x.Execute(args);
+                Thread.Sleep(int.MaxValue);
+                
+            }
+            else
+            {
+                ServiceBase[] ServicesToRun;
+                ServicesToRun = new ServiceBase[]
+                {
+                    new ProxyService()
+                };
+                ServiceBase.Run(ServicesToRun);
+            }
+
         }
+
     }
 }

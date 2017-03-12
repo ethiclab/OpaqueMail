@@ -306,11 +306,12 @@ namespace OpaqueMail
             signer.IncludeOption = X509IncludeOption.WholeChain;
 
             // Sign the current time.
-            if ((message.SmimeSigningOptionFlags & SmimeSigningOptionFlags.SignTime) > 0)
+           /* if ((message.SmimeSigningOptionFlags & SmimeSigningOptionFlags.SignTime) > 0)
             {
                 Pkcs9SigningTime signingTime = new Pkcs9SigningTime();
                 signer.SignedAttributes.Add(signingTime);
-            }
+                signer.SignedAttributes.Add()
+            }*/
 
             // Encode the signed message.
             signedCms.ComputeSignature(signer);
