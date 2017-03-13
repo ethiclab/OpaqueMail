@@ -929,12 +929,54 @@ namespace OpaqueMail
 
                 MIMEBuilder.Append("--" + MimeBoundaryName + "\r\n");
 
-                if (this.IsBodyHtml)
-                    MIMEBuilder.Append("Content-Type: text/html\r\n");
+                if (this.IsBodyHtml) { 
+                    MIMEBuilder.Append("Content-Type: text/html;charset=\"UTF-8\"\r\n");
+                Body =
+                    "<!DOCTYPE HTML PUBLIC \" -//W3C//DTD HTML 4.0 Transitional//EN\"> <HTML> <HEAD> <TITLE> </TITLE> </HEAD> <body><DIV id=\"eGainmsgDIV23\" style=\"font-family:Segoe UI;font-size:10pt\"><head>\r\n" +
+                    "<META content = \"text/html; charset=us-ascii\" http-equiv = Content-Type>\r\n" +
+                           "<META name=GENERATOR content=\"MSHTML 11.00.10570.1001\">"+
+                           "<STYLE><!--"+
+                           "/* Font Definitions */"+
+                    "font-face\r\n" +
+                    "   {font-family:\"Cambria Math\";\r\n" +
+                    "    panose-1:2 4 5 3 5 4 6 3 2 4;}\r\n" +
+                    "font-face\r\n" +
+                    "   {font-family:Calibri;\r\n" +
+                    "    panose-1:2 15 5 2 2 2 4 3 2 4;}\r\n\r\n" +
+                    "/* Style Definitions */\r\n" +
+                    "p.MsoNormal, li.MsoNormal, div.MsoNormal\r\n\r\n" +
+                    "   {margin: 0cm;\r\n" +
+                    "    margin-bottom:.0001pt;\r\n" +
+                    "    font-size:11.0pt;\r\n" +
+                    "    font-family:\"Calibri\",sans-serif;\r\n" +
+                    "    mso-fareast-language:EN-US;}\r\n" +
+                    "a: link, span.MsoHyperlink\r\n" +
+                    "   {mso-style-priority:99;\r\n" +
+                    "    color:#0563C1;\r\n" +
+                    "    text-decoration:underline;}\r\n" +
+                    "a: visited, span.MsoHyperlinkFollowed\r\n" +
+                    "   {mso-style-priority:99;\r\n" +
+                    "    color:#954F72;\r\n" +
+                    "    text-decoration:underline;}\r\n" +
+                    "span.EmailStyle17\r\n" +
+                    "   {mso-style-type:personal-compose;\r\n" +
+                    "    font-family:\"Calibri\",sans-serif;\r\n" +
+                    "    color: windowtext;}\r\n" +
+                    "..MsoChpDefault\r\n" +
+                    "   {mso-style-type:export-only;\r\n" +
+                    "    font-family:\"Calibri\",sans-serif;\r\n" +
+                    "    mso-fareast-language:EN-US;}\r\n" +
+                    "@page WordSection1\r\n" +
+                    "   {size: 612.0pt 792.0pt;\r\n" +
+                    "    margin: 70.85pt 2.0cm 2.0cm 2.0cm;}\r\n" +
+                    "div.WordSection1\r\n" +
+                    "   {page: WordSection1;}\r\n" +
+                    "--></STYLE></head><body><DIV id = eGainmsgDIV23 style = \"FONT -SIZE: 10pt; FONT-FAMILY: Segoe UI\"><STRONG> TEST NEW OUTBOUD EMAIL HTML FORMAT </STRONG> </DIV></body></DIV></BODY> </HTML> ";
+                }
                 else
                     MIMEBuilder.Append("Content-Type: text/plain\r\n");
                 MIMEBuilder.Append("Content-Transfer-Encoding: " + ContentTransferEncoding + "\r\n\r\n");
-
+                
                 MIMEBuilder.Append(Functions.Encode(Body, ContentTransferEncoding));
                 MIMEBuilder.Append("\r\n");
             }

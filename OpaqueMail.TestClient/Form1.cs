@@ -654,7 +654,8 @@ This is a test of the APPEND command.", new string[] { @"\Seen" }, DateTime.Now)
                         message.ReplyToList.Add(replyToAddress);
                 }
 
-                message.Subject = SmtpSubject.Text;
+                message.Subject = "EMAIL TEST [#2622]";// SmtpSubject.Text;
+                SmtpBody.Text = "dzień dobry";
                 message.Body = SmtpBody.Text;
 
                 // Process attachments.
