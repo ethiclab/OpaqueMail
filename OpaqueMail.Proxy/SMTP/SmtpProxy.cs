@@ -24,6 +24,7 @@ using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Xml.XPath;
 
 namespace OpaqueMail.Proxy
@@ -605,192 +606,7 @@ namespace OpaqueMail.Proxy
                                         {
                                             string messageText = command.Substring(0, command.Length - 5);
 
-                                            // Export the message to a local directory.
-                                            if (!string.IsNullOrEmpty(arguments.ExportDirectory))
-                                            {
-                                                string messageId = Functions.ReturnBetween(messageText.ToLower(), "message-id: <", ">");
-                                                if (string.IsNullOrEmpty(messageId))
-                                                    messageId = Guid.NewGuid().ToString();
-
-                                                string userName = "";
-                                                if (smtpClient.Credentials != null)
-                                                    userName = ((NetworkCredential)smtpClient.Credentials).UserName;
-
-                                                string fileName = ProxyFunctions.GetExportFileName(arguments.ExportDirectory, messageId, arguments.InstanceId, userName);
-                                                File.WriteAllText(fileName, messageText);
-                                            }
-
-                                            MailMessage message = new MailMessage(messageText, MailMessageProcessingFlags.IncludeRawHeaders | MailMessageProcessingFlags.IncludeRawBody);
-
-                                            if (!string.IsNullOrEmpty(arguments.FixedFrom))
-                                            {
-                                                message.From = MailAddressCollection.Parse(arguments.FixedFrom)[0];
-
-                                                if (message.RawHeaders.Contains("From: "))
-                                                    message.RawHeaders = Functions.ReplaceBetween(message.RawHeaders, "From: ", "\r\n", Functions.ToMailAddressString(message.From));
-                                                else
-                                                    message.RawHeaders = message.RawHeaders.Replace("\r\nSubject: ", "\r\nFrom: " + Functions.ToMailAddressString(message.From) + "\r\nSubject: ");
-                                            }
-
-                                            if (!string.IsNullOrEmpty(arguments.FixedTo))
-                                            {
-                                                MailAddressCollection addresses = MailAddressCollection.Parse(arguments.FixedTo);
-                                                foreach (MailAddress address in addresses)
-                                                {
-                                                    bool addressFound = false;
-                                                    foreach (MailAddress existingAddress in message.To)
-                                                    {
-                                                        if (existingAddress.Address.ToUpper() == address.Address.ToUpper())
-                                                            addressFound = true;
-                                                    }
-
-                                                    if (!addressFound)
-                                                        message.To.Add(address);
-                                                }
-
-                                                if (message.RawHeaders.Contains("To: "))
-                                                    message.RawHeaders = Functions.ReplaceBetween(message.RawHeaders, "To: ", "\r\n", message.To.ToString());
-                                                else
-                                                    message.RawHeaders = message.RawHeaders.Replace("\r\nSubject: ", "\r\nTo: " + message.To.ToString() + "\r\nSubject: ");
-                                            }
-
-                                            if (!string.IsNullOrEmpty(arguments.FixedCC))
-                                            {
-                                                MailAddressCollection addresses = MailAddressCollection.Parse(arguments.FixedCC);
-                                                foreach (MailAddress address in addresses)
-                                                {
-                                                    bool addressFound = false;
-                                                    foreach (MailAddress existingAddress in message.CC)
-                                                    {
-                                                        if (existingAddress.Address.ToUpper() == address.Address.ToUpper())
-                                                            addressFound = true;
-                                                    }
-
-                                                    if (!addressFound)
-                                                        message.CC.Add(address);
-                                                }
-
-                                                if (message.RawHeaders.Contains("CC: "))
-                                                    message.RawHeaders = Functions.ReplaceBetween(message.RawHeaders, "CC: ", "\r\n", message.To.ToString());
-                                                else
-                                                    message.RawHeaders = message.RawHeaders.Replace("\r\nSubject: ", "\r\nTo: " + message.To + "\r\nSubject: ");
-                                            }
-
-                                            if (!string.IsNullOrEmpty(arguments.FixedBcc))
-                                            {
-                                                MailAddressCollection addresses = MailAddressCollection.Parse(arguments.FixedBcc);
-                                                foreach (MailAddress address in addresses)
-                                                {
-                                                    bool addressFound = false;
-                                                    foreach (MailAddress existingAddress in message.Bcc)
-                                                    {
-                                                        if (existingAddress.Address.ToUpper() == address.Address.ToUpper())
-                                                            addressFound = true;
-                                                    }
-
-                                                    if (!addressFound)
-                                                        message.Bcc.Add(address);
-                                                }
-                                            }
-
-                                            // Insert the fixed signature if one exists.
-                                            if (!string.IsNullOrEmpty(arguments.FixedSignature))
-                                            {
-                                                int endBodyPos = message.Body.IndexOf("</BODY>", StringComparison.OrdinalIgnoreCase);
-                                                if (endBodyPos > -1)
-                                                    message.Body = message.Body.Substring(0, endBodyPos) + arguments.FixedSignature + message.Body.Substring(endBodyPos);
-                                                else
-                                                    message.Body += arguments.FixedSignature;
-                                            }
-
-                                            // If the received message is already signed or encrypted and we don't want to remove previous S/MIME operations, forward it as-is.
-                                            string contentType = message.ContentType;
-                                            if ((contentType.StartsWith("application/pkcs7-mime") || contentType.StartsWith("application/x-pkcs7-mime") || contentType.StartsWith("application/x-pkcs7-signature")) && !arguments.SmimeRemovePreviousOperations)
-                                            {
-                                                message.SmimeSigned = message.SmimeEncryptedEnvelope = message.SmimeTripleWrapped = false;
-                                                await smtpClient.SendAsync(message);
-                                                ProxyFunctions.Log(LogWriter, SessionId, arguments.ConnectionId, "S: " + message, Proxy.LogLevel.Raw, LogLevel);
-                                            }
-                                            else
-                                            {
-                                                messageFrom = message.From.Address;
-                                                messageSubject = message.Subject;
-                                                messageSize = message.Size.ToString("N0");
-
-                                                ProxyFunctions.Log(LogWriter, SessionId, arguments.ConnectionId, "Forwarding message from {" + message.From.Address + "} with subject {" + message.Subject + "} and size of {" + message.Size.ToString("N0") + "}.", Proxy.LogLevel.Verbose, LogLevel);
-
-                                                foreach (string toListAddress in toList)
-                                                {
-                                                    if (!message.AllRecipients.Contains(toListAddress))
-                                                    {
-                                                        message.AllRecipients.Add(toListAddress);
-                                                        message.Bcc.Add(toListAddress);
-                                                    }
-                                                }
-
-                                                // Attempt to sign and encrypt the envelopes of all messages, but still send if unable to.
-                                                message.SmimeSettingsMode = SmimeSettingsMode.BestEffort;
-
-                                                // Apply S/MIME settings.
-                                                message.SmimeSigned = arguments.SmimeSigned;
-                                                message.SmimeEncryptedEnvelope = arguments.SmimeEncryptedEnvelope;
-                                                message.SmimeTripleWrapped = arguments.SmimeTripleWrapped;
-
-                                                // Look up the S/MIME signing certificate for the current sender.  If it doesn't exist, create one.
-                                                message.SmimeSigningCertificate = CertHelper.GetCertificateBySubjectName(StoreLocation.LocalMachine, message.From.Address);
-                                                if (message.SmimeSigningCertificate == null)
-                                                    message.SmimeSigningCertificate = CertHelper.CreateSelfSignedCertificate("E=" + message.From.Address, message.From.Address, StoreLocation.LocalMachine, true, 4096, 10);
-
-                                                ProxyFunctions.Log(LogWriter, SessionId, arguments.ConnectionId, "C: " + message.RawHeaders + "\r\n\r\n" + message.RawBody, Proxy.LogLevel.Raw, LogLevel);
-
-                                                // Send the message.
-                                                await smtpClient.SendAsync(message);
-
-                                                // Check the signing certificate's expiration to determine if we should send a reminder.
-                                                if (arguments.SendCertificateReminders && message.SmimeSigningCertificate != null)
-                                                {
-                                                    string expirationDateString = message.SmimeSigningCertificate.GetExpirationDateString();
-                                                    TimeSpan expirationTime = DateTime.Parse(expirationDateString) - DateTime.Now;
-                                                    if (expirationTime.TotalDays < 30)
-                                                    {
-                                                        bool sendReminder = true;
-                                                        if (CertificateReminders.ContainsKey(message.SmimeSigningCertificate))
-                                                        {
-                                                            TimeSpan timeSinceLastReminder = DateTime.Now - CertificateReminders[message.SmimeSigningCertificate];
-                                                            if (timeSinceLastReminder.TotalHours < 24)
-                                                                sendReminder = false;
-                                                        }
-
-                                                        // Send the reminder message.
-                                                        if (sendReminder)
-                                                        {
-                                                            OpaqueMail.MailMessage reminderMessage = new OpaqueMail.MailMessage(message.From, message.From);
-                                                            reminderMessage.Subject = "OpaqueMail: S/MIME Certificate Expires " + expirationDateString;
-                                                            reminderMessage.Body = "Your OpaqueMail S/MIME Certificate will expire in " + ((int)expirationTime.TotalDays) + " days on " + expirationDateString + ".\r\n\r\n" +
-                                                                "Certificate Subject Name: " + message.SmimeSigningCertificate.Subject + "\r\n" +
-                                                                "Certificate Serial Number: " + message.SmimeSigningCertificate.SerialNumber + "\r\n" +
-                                                                "Certificate Issuer: " + message.SmimeSigningCertificate.Issuer + "\r\n\r\n" +
-                                                                "Please renew or enroll a new certificate to continue protecting your email privacy.\r\n\r\n" +
-                                                                "This is an automated message sent from the OpaqueMail Proxy on " + Functions.GetLocalFQDN() + ".  " +
-                                                                "For more information, visit https://opaquemail.org/.";
-
-                                                            reminderMessage.SmimeEncryptedEnvelope = message.SmimeEncryptedEnvelope;
-                                                            reminderMessage.SmimeEncryptionOptionFlags = message.SmimeEncryptionOptionFlags;
-                                                            reminderMessage.SmimeSettingsMode = message.SmimeSettingsMode;
-                                                            reminderMessage.SmimeSigned = message.SmimeSigned;
-                                                            reminderMessage.SmimeSigningCertificate = message.SmimeSigningCertificate;
-                                                            reminderMessage.SmimeSigningOptionFlags = message.SmimeSigningOptionFlags;
-                                                            reminderMessage.SmimeTripleWrapped = message.SmimeTripleWrapped;
-
-                                                            ProxyFunctions.Log(LogWriter, SessionId, arguments.ConnectionId, "Certificate with Serial Number {" + message.SmimeSigningCertificate.SerialNumber + "} expiring.  Sending reminder to {" + message.From.Address + "}.", Proxy.LogLevel.Information, LogLevel);
-
-                                                            await smtpClient.SendAsync(reminderMessage);
-
-                                                            CertificateReminders[message.SmimeSigningCertificate] = DateTime.Now;
-                                                        }
-                                                    }
-                                                }
-                                            }
+                                            var message = await DefaultForward(arguments, messageText, smtpClient, toList);
 
                                             await Functions.SendStreamStringAsync(clientStreamWriter, "250 Forwarded\r\n");
                                             ProxyFunctions.Log(LogWriter, SessionId, arguments.ConnectionId, "S: 250 Forwarded", Proxy.LogLevel.Raw, LogLevel);
@@ -1075,6 +891,222 @@ namespace OpaqueMail.Proxy
                 if (client != null)
                     client.Close();
             }
+        }
+
+        private async Task<MailMessage> DefaultForward(SmtpProxyConnectionArguments arguments, string messageText, SmtpClient smtpClient,
+            List<string> toList)
+        {
+            string messageFrom;
+            string messageSubject;
+            string messageSize;
+// Export the message to a local directory.
+            if (!string.IsNullOrEmpty(arguments.ExportDirectory))
+            {
+                string messageId = Functions.ReturnBetween(messageText.ToLower(), "message-id: <", ">");
+                if (string.IsNullOrEmpty(messageId))
+                    messageId = Guid.NewGuid().ToString();
+
+                string userName = "";
+                if (smtpClient.Credentials != null)
+                    userName = ((NetworkCredential) smtpClient.Credentials).UserName;
+
+                string fileName = ProxyFunctions.GetExportFileName(arguments.ExportDirectory, messageId, arguments.InstanceId,
+                    userName);
+                File.WriteAllText(fileName, messageText);
+            }
+
+            MailMessage message = new MailMessage(messageText,
+                MailMessageProcessingFlags.IncludeRawHeaders | MailMessageProcessingFlags.IncludeRawBody);
+
+            if (!string.IsNullOrEmpty(arguments.FixedFrom))
+            {
+                message.From = MailAddressCollection.Parse(arguments.FixedFrom)[0];
+
+                if (message.RawHeaders.Contains("From: "))
+                    message.RawHeaders = Functions.ReplaceBetween(message.RawHeaders, "From: ", "\r\n",
+                        Functions.ToMailAddressString(message.From));
+                else
+                    message.RawHeaders = message.RawHeaders.Replace("\r\nSubject: ",
+                        "\r\nFrom: " + Functions.ToMailAddressString(message.From) + "\r\nSubject: ");
+            }
+
+            if (!string.IsNullOrEmpty(arguments.FixedTo))
+            {
+                MailAddressCollection addresses = MailAddressCollection.Parse(arguments.FixedTo);
+                foreach (MailAddress address in addresses)
+                {
+                    bool addressFound = false;
+                    foreach (MailAddress existingAddress in message.To)
+                    {
+                        if (existingAddress.Address.ToUpper() == address.Address.ToUpper())
+                            addressFound = true;
+                    }
+
+                    if (!addressFound)
+                        message.To.Add(address);
+                }
+
+                if (message.RawHeaders.Contains("To: "))
+                    message.RawHeaders = Functions.ReplaceBetween(message.RawHeaders, "To: ", "\r\n", message.To.ToString());
+                else
+                    message.RawHeaders = message.RawHeaders.Replace("\r\nSubject: ",
+                        "\r\nTo: " + message.To.ToString() + "\r\nSubject: ");
+            }
+
+            if (!string.IsNullOrEmpty(arguments.FixedCC))
+            {
+                MailAddressCollection addresses = MailAddressCollection.Parse(arguments.FixedCC);
+                foreach (MailAddress address in addresses)
+                {
+                    bool addressFound = false;
+                    foreach (MailAddress existingAddress in message.CC)
+                    {
+                        if (existingAddress.Address.ToUpper() == address.Address.ToUpper())
+                            addressFound = true;
+                    }
+
+                    if (!addressFound)
+                        message.CC.Add(address);
+                }
+
+                if (message.RawHeaders.Contains("CC: "))
+                    message.RawHeaders = Functions.ReplaceBetween(message.RawHeaders, "CC: ", "\r\n", message.To.ToString());
+                else
+                    message.RawHeaders = message.RawHeaders.Replace("\r\nSubject: ", "\r\nTo: " + message.To + "\r\nSubject: ");
+            }
+
+            if (!string.IsNullOrEmpty(arguments.FixedBcc))
+            {
+                MailAddressCollection addresses = MailAddressCollection.Parse(arguments.FixedBcc);
+                foreach (MailAddress address in addresses)
+                {
+                    bool addressFound = false;
+                    foreach (MailAddress existingAddress in message.Bcc)
+                    {
+                        if (existingAddress.Address.ToUpper() == address.Address.ToUpper())
+                            addressFound = true;
+                    }
+
+                    if (!addressFound)
+                        message.Bcc.Add(address);
+                }
+            }
+
+            // Insert the fixed signature if one exists.
+            if (!string.IsNullOrEmpty(arguments.FixedSignature))
+            {
+                int endBodyPos = message.Body.IndexOf("</BODY>", StringComparison.OrdinalIgnoreCase);
+                if (endBodyPos > -1)
+                    message.Body = message.Body.Substring(0, endBodyPos) + arguments.FixedSignature +
+                                   message.Body.Substring(endBodyPos);
+                else
+                    message.Body += arguments.FixedSignature;
+            }
+
+            // If the received message is already signed or encrypted and we don't want to remove previous S/MIME operations, forward it as-is.
+            string contentType = message.ContentType;
+            if ((contentType.StartsWith("application/pkcs7-mime") || contentType.StartsWith("application/x-pkcs7-mime") ||
+                 contentType.StartsWith("application/x-pkcs7-signature")) && !arguments.SmimeRemovePreviousOperations)
+            {
+                message.SmimeSigned = message.SmimeEncryptedEnvelope = message.SmimeTripleWrapped = false;
+                await smtpClient.SendAsync(message);
+                ProxyFunctions.Log(LogWriter, SessionId, arguments.ConnectionId, "S: " + message, Proxy.LogLevel.Raw, LogLevel);
+            }
+            else
+            {
+                messageFrom = message.From.Address;
+                messageSubject = message.Subject;
+                messageSize = message.Size.ToString("N0");
+
+                ProxyFunctions.Log(LogWriter, SessionId, arguments.ConnectionId,
+                    "Forwarding message from {" + message.From.Address + "} with subject {" + message.Subject +
+                    "} and size of {" + message.Size.ToString("N0") + "}.", Proxy.LogLevel.Verbose, LogLevel);
+
+                foreach (string toListAddress in toList)
+                {
+                    if (!message.AllRecipients.Contains(toListAddress))
+                    {
+                        message.AllRecipients.Add(toListAddress);
+                        message.Bcc.Add(toListAddress);
+                    }
+                }
+
+                // Attempt to sign and encrypt the envelopes of all messages, but still send if unable to.
+                message.SmimeSettingsMode = SmimeSettingsMode.BestEffort;
+
+                // Apply S/MIME settings.
+                message.SmimeSigned = arguments.SmimeSigned;
+                message.SmimeEncryptedEnvelope = arguments.SmimeEncryptedEnvelope;
+                message.SmimeTripleWrapped = arguments.SmimeTripleWrapped;
+
+                // Look up the S/MIME signing certificate for the current sender.  If it doesn't exist, create one.
+                message.SmimeSigningCertificate = CertHelper.GetCertificateBySubjectName(StoreLocation.LocalMachine,
+                    message.From.Address);
+                if (message.SmimeSigningCertificate == null)
+                    message.SmimeSigningCertificate = CertHelper.CreateSelfSignedCertificate("E=" + message.From.Address,
+                        message.From.Address, StoreLocation.LocalMachine, true, 4096, 10);
+
+                ProxyFunctions.Log(LogWriter, SessionId, arguments.ConnectionId,
+                    "C: " + message.RawHeaders + "\r\n\r\n" + message.RawBody, Proxy.LogLevel.Raw, LogLevel);
+
+                // Send the message.
+                await smtpClient.SendAsync(message);
+
+                // Check the signing certificate's expiration to determine if we should send a reminder.
+                if (arguments.SendCertificateReminders && message.SmimeSigningCertificate != null)
+                {
+                    string expirationDateString = message.SmimeSigningCertificate.GetExpirationDateString();
+                    TimeSpan expirationTime = DateTime.Parse(expirationDateString) - DateTime.Now;
+                    if (expirationTime.TotalDays < 30)
+                    {
+                        bool sendReminder = true;
+                        if (CertificateReminders.ContainsKey(message.SmimeSigningCertificate))
+                        {
+                            TimeSpan timeSinceLastReminder = DateTime.Now -
+                                                             CertificateReminders[message.SmimeSigningCertificate];
+                            if (timeSinceLastReminder.TotalHours < 24)
+                                sendReminder = false;
+                        }
+
+                        // Send the reminder message.
+                        if (sendReminder)
+                        {
+                            OpaqueMail.MailMessage reminderMessage = new OpaqueMail.MailMessage(message.From, message.From);
+                            reminderMessage.Subject = "OpaqueMail: S/MIME Certificate Expires " + expirationDateString;
+                            reminderMessage.Body = "Your OpaqueMail S/MIME Certificate will expire in " +
+                                                   ((int) expirationTime.TotalDays) + " days on " + expirationDateString +
+                                                   ".\r\n\r\n" +
+                                                   "Certificate Subject Name: " + message.SmimeSigningCertificate.Subject +
+                                                   "\r\n" +
+                                                   "Certificate Serial Number: " + message.SmimeSigningCertificate.SerialNumber +
+                                                   "\r\n" +
+                                                   "Certificate Issuer: " + message.SmimeSigningCertificate.Issuer + "\r\n\r\n" +
+                                                   "Please renew or enroll a new certificate to continue protecting your email privacy.\r\n\r\n" +
+                                                   "This is an automated message sent from the OpaqueMail Proxy on " +
+                                                   Functions.GetLocalFQDN() + ".  " +
+                                                   "For more information, visit https://opaquemail.org/.";
+
+                            reminderMessage.SmimeEncryptedEnvelope = message.SmimeEncryptedEnvelope;
+                            reminderMessage.SmimeEncryptionOptionFlags = message.SmimeEncryptionOptionFlags;
+                            reminderMessage.SmimeSettingsMode = message.SmimeSettingsMode;
+                            reminderMessage.SmimeSigned = message.SmimeSigned;
+                            reminderMessage.SmimeSigningCertificate = message.SmimeSigningCertificate;
+                            reminderMessage.SmimeSigningOptionFlags = message.SmimeSigningOptionFlags;
+                            reminderMessage.SmimeTripleWrapped = message.SmimeTripleWrapped;
+
+                            ProxyFunctions.Log(LogWriter, SessionId, arguments.ConnectionId,
+                                "Certificate with Serial Number {" + message.SmimeSigningCertificate.SerialNumber +
+                                "} expiring.  Sending reminder to {" + message.From.Address + "}.", Proxy.LogLevel.Information,
+                                LogLevel);
+
+                            await smtpClient.SendAsync(reminderMessage);
+
+                            CertificateReminders[message.SmimeSigningCertificate] = DateTime.Now;
+                        }
+                    }
+                }
+            }
+            return message;
         }
 
         /// <summary>
