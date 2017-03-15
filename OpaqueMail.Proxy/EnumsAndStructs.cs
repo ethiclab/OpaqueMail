@@ -281,6 +281,46 @@ namespace OpaqueMail.Proxy
         
         /// <summary>SMTP Proxy to start.</summary>
         public SmtpProxy Proxy;
+
+        /// <summary>
+        /// Custom forward class name. todo
+        /// </summary>
+        public string CustomForwardClass { get; set; }
+
+        /// <summary>
+        /// Custom dll file name
+        /// </summary>
+        public string CustomDll { get; set; }
+
+        /// <summary>
+        /// Certificate p12 filename used by CustomForward Library
+        /// </summary>
+        public string CustomCertificate { get; set; }
+
+        /// <summary>
+        /// Certificate p12 password
+        /// </summary>
+        public string CustomCertificatePassword { get; set; }
+
+        /// <summary>
+        /// SMTP Address used by CustomForward Library
+        /// </summary>
+        public string CustomSmtpAddress { get; set; }
+
+        /// <summary>
+        /// SMTP Port used by CustomForward Library
+        /// </summary>
+        public int CustomSmtpPort { get; set; }
+
+        /// <summary>
+        /// SMTP User used by CustomForward Library
+        /// </summary>
+        public string CustomSmtpUser { get; set; }
+
+        /// <summary>
+        /// SMTP User password used  by CustomForward Library
+        /// </summary>
+        public string CustomSmtpPassword { get; set; }
     }
 
     /// <summary>
@@ -346,6 +386,46 @@ namespace OpaqueMail.Proxy
         public string ConnectionId;
         /// <summary>The instance number of the proxy.</summary>
         public int InstanceId;
+
+        /// <summary>
+        /// Custom forward class name. todo
+        /// </summary>
+        public string CustomForwardClass { get; set; }
+
+        /// <summary>
+        /// Custom dll file name
+        /// </summary>
+        public string CustomDll { get; set; }
+
+        /// <summary>
+        /// Certificate p12 filename used by CustomForward Library
+        /// </summary>
+        public string CustomCertificate { get; set; }
+
+        /// <summary>
+        /// Certificate p12 password
+        /// </summary>
+        public string CustomCertificatePassword { get; set; }
+
+        /// <summary>
+        /// SMTP Address used by CustomForward Library
+        /// </summary>
+        public string CustomSmtpAddress { get; set; }
+
+        /// <summary>
+        /// SMTP Port used by CustomForward Library
+        /// </summary>
+        public int CustomSmtpPort { get; set; }
+
+        /// <summary>
+        /// SMTP User used by CustomForward Library
+        /// </summary>
+        public string CustomSmtpUser { get; set; }
+
+        /// <summary>
+        /// SMTP User password used  by CustomForward Library
+        /// </summary>
+        public string CustomSmtpPassword { get; set; }
     }
 
     /// <summary>
