@@ -620,7 +620,7 @@ This is a test of the APPEND command.", new string[] { @"\Seen" }, DateTime.Now)
 
                 SmtpClient smtpClient = new SmtpClient(SmtpHost.Text, smtpPort);
                 smtpClient.Credentials = new NetworkCredential(SmtpUsername.Text, SmtpPassword.Text);
-                smtpClient.EnableSsl = true;
+                smtpClient.EnableSsl = SmtpSsl.Checked;
 
                 MailMessage message = new MailMessage();
                 message.From = new MailAddress(SmtpFrom.Text);
