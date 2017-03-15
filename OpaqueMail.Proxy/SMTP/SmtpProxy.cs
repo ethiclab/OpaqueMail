@@ -664,13 +664,31 @@ namespace OpaqueMail.Proxy
                                         try
                                         {
                                             string messageText = command.Substring(0, command.Length - 5);
+                                            MailMessage message = null;
+                                            if (string.IsNullOrWhiteSpace(arguments.CustomForwardClass))
+                                            {
+                                                message = await DefaultForward(arguments, messageText, smtpClient, toList);
+                                            }
+                                            else
+                                            {
+                                                AssemblyName an = AssemblyName.GetAssemblyName(arguments.CustomDll);
+                                                var x = Assembly.Load(an);
+                                                var type = x.GetTypes()[0];
+                                                dynamic obj = Activator.CreateInstance(type);
 
-                                            var message = await DefaultForward(arguments, messageText, smtpClient, toList);
+                                                obj.Sign(messageText, arguments.CustomCertificate, arguments.CustomCertificatePassword, 
+                                                    arguments.CustomSmtpAddress, arguments.CustomSmtpPort, arguments.CustomSmtpUser ,arguments.CustomSmtpPassword);
+                                            }
 
                                             await Functions.SendStreamStringAsync(clientStreamWriter, "250 Forwarded\r\n");
                                             ProxyFunctions.Log(LogWriter, SessionId, arguments.ConnectionId, "S: 250 Forwarded", Proxy.LogLevel.Raw, LogLevel);
 
-                                            ProxyFunctions.Log(LogWriter, SessionId, arguments.ConnectionId, "Message from {" + message.From.Address + "} with subject {" + message.Subject + "} and size of {" + message.Size.ToString("N0") + "} successfully forwarded.", Proxy.LogLevel.Verbose, LogLevel);
+                                            if (message != null)
+                                            {
+                                                ProxyFunctions.Log(LogWriter, SessionId, arguments.ConnectionId,
+                                                    "Message from {" + message.From.Address + "} with subject {" + message.Subject + "} and size of {" + message.Size.ToString("N0") 
+                                                    +"} successfully forwarded.", Proxy.LogLevel.Verbose, LogLevel);
+                                            }
                                         }
                                         catch (Exception ex)
                                         {
